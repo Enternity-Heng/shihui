@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="UTF-8"><title>Math input integration editor</title></head><body>
+<textarea id="editor" autofocus style="width:95%;height:115px;font-size:24px"></textarea>
+<div id="rich" contenteditable="true" role="textbox" style="width:95%;height:150px;border:1px solid #999;margin-top:12px;overflow:auto"></div>
+<script>
+document.getElementById('rich').addEventListener('paste',event=>{
+  const file=Array.from(event.clipboardData.files).find(file=>file.type==='image/png');
+  if(!file)return;
+  event.preventDefault();
+  const img=document.createElement('img');img.src=URL.createObjectURL(file);
+  document.getElementById('rich').append(img);
+});
+</script></body></html>

@@ -1,0 +1,95 @@
+import {_electron,expect} from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {spawn} from 'node:child_process';
+import {createInterface} from 'node:readline';
+const require=createRequire(import.meta.url),executablePath=process.argv[2]?path.resolve(process.argv[2]):require('electron');
+const packaged=!!process.argv[2];
+const env={...process.env,MATH_INPUT_TEST:'0'};delete env.ELECTRON_RUN_AS_NODE;
+if(!packaged){env.MATH_INPUT_TEST='1';env.MATH_INPUT_PROFILE=path.resolve('.test-profile/image-insert');}
+const app=await _electron.launch({executablePath,args:packaged?[`--user-data-dir=${path.resolve('.test-profile/image-insert-packaged')}`]:['.'],env,timeout:30000});
+const fixture=await _electron.launch({executablePath:require('electron'),args:['tests/fixtures/editor.cjs'],env,timeout:30000});
+const checks=[];
+let wordProcess;
+try{
+  const ui=await app.firstWindow(),editor=await fixture.firstWindow();ui.setDefaultTimeout(15000);
+  await expect(ui.locator('#source')).toBeVisible();await expect(editor.locator('#rich')).toBeVisible();
+  await expect.poll(async()=>await fixture.evaluate(()=>!!global.pressHotkey)).toBe(true);
+  const state=await ui.evaluate(()=>window.math.state());
+  if(state.shortcut!=='Control+Alt+M')throw new Error('Use a test profile with the default shortcut.');
+  async function openForRich(){
+    await ui.evaluate(()=>window.math.hide());
+    await fixture.evaluate(()=>global.focusEditor());
+    await editor.locator('#rich').click();
+    await fixture.evaluate(()=>global.pressHotkey());
+    await expect(ui.locator('#target')).toContainText('Math input integration editor');
+  }
+  await openForRich();
+  await ui.locator('#source').fill('\\frac{a}{b}');
+  await expect(ui.locator('#primary')).toHaveText('插入图片 ⌃↵');
+  const factor=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(win=>win.webContents.getURL()==='mathapp://local/index.html').webContents.getZoomFactor());
+  await ui.locator('#source').press('Control+Enter');
+  await expect(editor.locator('#rich img')).toHaveCount(1);
+  await expect.poll(async()=>await editor.locator('#rich img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(20);
+  expect(await app.evaluate(async({clipboard})=>await clipboard.has('image/png'))).toBe(true);
+  expect(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(win=>win.webContents.getURL()==='mathapp://local/index.html').webContents.getZoomFactor())).toBe(factor);
+  checks.push('Ctrl+Enter 将分数 PNG 粘贴到外部富文本控件，保留图片剪贴板且主界面倍率不变');
+  await openForRich();
+  await ui.locator('#source').fill('\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}');
+  await expect(ui.locator('#primary')).toHaveText('插入图片 ⌃↵');
+  await ui.locator('#primary').click();
+  await expect(editor.locator('#rich img')).toHaveCount(2);
+  checks.push('公式主按钮也可插入图片');
+  await openForRich();
+  await ui.locator('#source').fill('\\sqrt{x}');
+  await expect(ui.locator('#copy-image')).toBeEnabled();
+  await ui.locator('#source').press('Enter');
+  await expect(ui.locator('#message')).toContainText('请按 Ctrl+Enter');
+  await expect(editor.locator('#rich img')).toHaveCount(2);
+  checks.push('普通回车不会将复杂公式意外粘贴为图片');
+  await app.evaluate(async({clipboard})=>await clipboard.writeText('ime-image-sentinel'));
+  await ui.locator('#source').evaluate(element=>{
+    element.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));
+    element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,isComposing:true,bubbles:true,cancelable:true}));
+    element.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));
+  });
+  expect(await app.evaluate(async({clipboard})=>await clipboard.readText())).toBe('ime-image-sentinel');
+  checks.push('中文组字期间 Ctrl+Enter 不提交图片');
+  await fixture.evaluate(()=>global.focusEditor());
+  await expect.poll(async()=>await ui.evaluate(()=>window.math.state())).toMatchObject({target:null});
+  const refused=await ui.evaluate(async()=>{const result=await window.math.render('\\frac{1}{2}');return window.math.insertImage(result.id);});
+  expect(refused.ok).toBe(false);
+  expect(await app.evaluate(async({clipboard})=>await clipboard.readText())).toBe('ime-image-sentinel');
+  checks.push('失效目标拒绝插入，不改动剪贴板');
+  // A tray-style opening has no target: the shortcut provides a clipboard fallback.
+  await app.evaluate(({BrowserWindow})=>{const main=BrowserWindow.getAllWindows().find(win=>win.webContents.getURL()==='mathapp://local/index.html');main.show();main.focus();});
+  await ui.locator('#source').fill('\\frac{1}{2}');
+  await expect(ui.locator('#copy-image')).toBeEnabled();
+  await ui.locator('#source').press('Control+Enter');
+  await expect(ui.locator('#message')).toContainText('已复制公式图片');
+  checks.push('没有目标时 Ctrl+Enter 回退为复制 PNG');
+  const noAddins=process.env.MATH_WORD_WITH_ADDINS!=='1';
+  wordProcess=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File','tests/fixtures/word.ps1',...(noAddins?['-NoAddins']:[])],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+  const queue=[];let waiting;
+  const lines=createInterface({input:wordProcess.stdout});
+  lines.on('line',line=>{try{const data=JSON.parse(line);if(waiting){const resolve=waiting;waiting=null;resolve(data);}else queue.push(data);}catch{}});
+  const next=()=>queue.length?Promise.resolve(queue.shift()):new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Word COM timeout')),30000);waiting=data=>{clearTimeout(timer);resolve(data);};});
+  const ready=await next();if(ready.error)throw new Error(ready.error);
+  await ui.evaluate(()=>window.math.hide());
+  await fixture.evaluate(()=>global.focusExternal('Word'));
+  wordProcess.stdin.write('focus\n');await next();
+  await fixture.evaluate(()=>global.pressHotkey());
+  await expect(ui.locator('#target')).toContainText('Word');
+  await ui.locator('#source').fill('\\frac{a}{b}');
+  await expect(ui.locator('#primary')).toHaveText('插入图片 ⌃↵');
+  await ui.locator('#source').press('Control+Enter');
+  await expect(ui.locator('#message')).toContainText('已发送图片粘贴请求');
+  await expect.poll(async()=>{wordProcess.stdin.write('read\n');return (await next()).images;}).toBe(1);
+  checks.push(`Microsoft Word ${ready.version}（${noAddins?'/a 禁用加载项':'正常加载项'}）文档实际新增一张公式图片`);
+  wordProcess.stdin.end('close\n');
+  console.log('Image insertion passed:',JSON.stringify(checks));
+}finally{
+  if(wordProcess&&!wordProcess.stdin.destroyed&&!wordProcess.stdin.writableEnded)wordProcess.stdin.end('close\n');
+  await fixture.close();await app.close();await fs.writeFile('test-results/image-insert-report.json',JSON.stringify({packaged,checks},null,2));
+}

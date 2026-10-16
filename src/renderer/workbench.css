@@ -1,0 +1,22 @@
+/* Layout refinements retain the established blue and white palette. */
+.app{padding:16px 22px 12px;gap:8px}
+.brandmark svg{width:36px;height:36px}h1{letter-spacing:2px}header p{font-size:11px;letter-spacing:.6px}
+.toolstrip{gap:8px;flex-wrap:wrap}.toolstrip-note{display:none}
+.work-modes{gap:2px;border:1px solid #dce4f1;border-radius:10px;padding:3px;margin-right:auto}
+.work-modes button{display:inline-flex;align-items:center;gap:5px;justify-content:center;padding:7px 10px;font-size:11px;white-space:nowrap;min-height:30px}
+.work-modes button[aria-pressed=true]{background:white;color:#3159d4;box-shadow:0 1px 5px #24365615}
+.work-modes button:hover:not(:disabled){background:#f4f7ff;color:#3159d4}
+#capture-start,#ocr-toggle{padding:8px 11px}
+.context{font-size:11px;padding:3px 1px}
+.formula-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:0 0 9px}
+.formula-tools button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:29px;border:1px solid var(--line);border-radius:9px;background:#fafbfe;color:#3a5fc3;font-size:11px;padding:5px 6px;white-space:nowrap}
+.formula-tools button:hover:not(:disabled){background:#edf2ff;border-color:#c6d5fb;color:#254abe}
+.editor{box-shadow:0 2px 8px #23304708}.editor>.section-heading{padding-top:10px;flex-wrap:nowrap}
+#source{font-size:17px;height:64px;min-height:64px;padding-top:8px}#source::placeholder{font-size:13px}
+.examples{padding-top:1px;padding-bottom:10px}
+.preview-card{box-shadow:0 2px 8px #23304705}.preview-card>.section-heading{padding-top:11px}.preview{min-height:110px}
+.drawer-heading>button:last-child{margin-left:auto}.subject-filters{background:white;gap:10px 16px}.subject-filters label{padding:4px 0}.subject-filters input{accent-color:var(--accent)}
+@media(max-width:700px){.app{padding:12px 15px 10px;gap:8px}.toolstrip{gap:7px}.work-modes{flex:1 0 100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.work-modes button{padding:5px 4px;gap:4px}.work-modes button svg{width:14px;height:14px}.brandmark svg{width:31px;height:31px}.formula-tools{gap:6px}.formula-tools button{padding:7px 4px;gap:4px}}
+@media(max-width:530px){.app{padding:10px 12px 8px;gap:7px}.formula-tools button{font-size:10px;min-height:34px}.formula-tools button svg{width:13px;height:13px}.context{font-size:10px}.examples{gap:5px}.examples>span{display:none}.footnote>span:first-child{font-size:8px}.footnote{gap:6px}#draft-status{max-width:100px}.section-heading .icon-button{font-size:10px}.work-modes button{font-size:10px}.preview{min-height:108px}}
+@media(max-height:590px){header{min-height:34px}.app{gap:7px}.formula-tools{margin-bottom:8px}.formula-tools button{min-height:33px}.preview{min-height:100px}#source{min-height:68px}.footnote{margin-top:8px}}
+@media(max-width:530px){.toolstrip{flex-wrap:nowrap;gap:5px}.work-modes{flex:1 1 auto}.work-modes button{gap:0;padding:5px}.work-modes button svg{display:none}.toolstrip>button span{display:none}#capture-start,#ocr-toggle{padding:8px;min-width:33px}}

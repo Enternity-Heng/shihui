@@ -1,0 +1,140 @@
+{
+  "name": "math-input-assistant",
+  "productName": "式绘",
+  "version": "1.5.0",
+  "description": "离线公式、算法与科学绘图工作台",
+  "author": "Math Input Assistant contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Enternity-Heng/shihui.git"
+  },
+  "homepage": "https://github.com/Enternity-Heng/shihui#readme",
+  "bugs": {
+    "url": "https://github.com/Enternity-Heng/shihui/issues"
+  },
+  "keywords": ["latex", "ocr", "math", "formula-editor", "electron", "offline", "flowchart", "scientific-diagrams"],
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main/main.cjs",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && node scripts/prepare-ocr.mjs --check && node scripts/verify-native.mjs && node scripts/build.mjs",
+    "setup": "node node_modules/electron/install.js && node scripts/prepare-ocr.mjs",
+    "start": "npm run setup && npm run build && electron .",
+    "test": "tsx --test tests/*.test.ts",
+    "test:desktop": "node scripts/desktop-test.mjs",
+    "test:compatibility": "node scripts/compatibility-test.mjs",
+    "test:packaged": "node scripts/packaged-test.mjs",
+    "test:zoom": "node scripts/zoom-test.mjs",
+    "test:image-insert": "node scripts/image-insert-test.mjs",
+    "package": "npm run setup && npm run build && node scripts/licenses.mjs && electron-builder --win nsis zip --x64 --publish never && node scripts/release.mjs",
+    "setup:ocr": "node scripts/prepare-ocr.mjs",
+    "test:ocr": "node scripts/ocr-test.mjs",
+    "test:features": "node scripts/features-test.mjs",
+    "test:professional": "node scripts/professional-test.mjs",
+    "test:expression": "node scripts/expression-test.mjs",
+    "test:specialty": "node scripts/specialty-test.mjs",
+    "preview:specialty": "node --import tsx scripts/specialty-preview.mjs",
+    "test:favorites-styles": "node scripts/favorites-styles-test.mjs",
+    "test:lifecycle": "node scripts/lifecycle-test.mjs",
+    "audit:release": "node scripts/audit-release.mjs",
+    "test:expansion": "node scripts/expansion-test.mjs",
+    "test:recovery": "node scripts/recovery-test.mjs",
+    "test:ui": "node scripts/ui-test.mjs"
+  },
+  "dependencies": {
+    "image-size": "2.0.4",
+    "katex": "0.19.0",
+    "koffi": "3.3.3",
+    "onnxruntime-node": "1.30.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/katex": "^0.16.7",
+    "@types/node": "^24.0.0",
+    "electron": "44.7.2",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  },
+  "build": {
+    "appId": "cn.mathinput.assistant",
+    "productName": "式绘",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "README.md",
+      "docs/**/*",
+      "LICENSE",
+      "THIRD-PARTY-NOTICES.txt",
+      "!node_modules/onnxruntime-node/bin/napi-v6/darwin/**/*",
+      "!node_modules/onnxruntime-node/bin/napi-v6/linux/**/*",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/koffi/**/*",
+      "node_modules/onnxruntime-node/**/*"
+    ],
+    "npmRebuild": false,
+    "artifactName": "${productName}-${version}-Windows-${arch}.${ext}",
+    "win": {
+      "icon": "assets/icon.ico",
+      "executableName": "MathInputAssistant",
+      "signAndEditExecutable": true,
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-Setup-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": false,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "language": "2052"
+    },
+    "extraResources": [
+      {
+        "from": "assets/ocr",
+        "to": "ocr",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "assets/vcruntime",
+        "to": ".",
+        "filter": [
+          "*.dll",
+          "*.rtf",
+          "manifest.json"
+        ]
+      },
+      {
+        "from": "assets/vcruntime",
+        "to": "resources/app.asar.unpacked/node_modules/onnxruntime-node/bin/napi-v6/win32/x64",
+        "filter": [
+          "*.dll"
+        ]
+      }
+    ]
+  }
+}

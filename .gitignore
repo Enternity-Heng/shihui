@@ -1,0 +1,26 @@
+node_modules/
+dist/
+release/
+test-results/
+.test-profile/
+*.log
+
+.implementation-baseline/
+
+# Downloaded OCR weights (restored by npm run setup:ocr)
+assets/ocr/*.onnx
+assets/ocr/*.download
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.npmrc
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+*.tmp
+*.bak

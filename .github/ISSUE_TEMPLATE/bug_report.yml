@@ -1,0 +1,24 @@
+name: 问题反馈
+description: 报告可复现的问题
+title: '[Bug] '
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: 使用环境
+      description: 式绘版本、Windows 版本，以及相关目标软件版本
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请使用不含私人信息的最小公式或样例。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true

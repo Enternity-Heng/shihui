@@ -1,0 +1,10 @@
+import { build as esbuild } from 'esbuild';
+import { build as vite } from 'vite';
+import fs from 'node:fs/promises';
+import './icon.mjs';
+const product=JSON.parse(await fs.readFile('package.json','utf8'));
+if(product.productName!==product.build.productName||!product.build.artifactName.startsWith('${productName}')||!product.build.nsis.artifactName.startsWith('${productName}'))throw new Error('产品名与安装包命名配置不一致。');
+await fs.mkdir('dist/main',{recursive:true});
+await esbuild({entryPoints:{main:'src/main/main.ts',preload:'src/main/preload.ts','capture-preload':'src/main/capture-preload.ts','render-worker':'src/main/render-worker.ts','ocr-worker':'src/main/ocr-worker.ts'},outdir:'dist/main',outExtension:{'.js':'.cjs'},bundle:true,platform:'node',format:'cjs',target:'node22',external:['electron','koffi','katex','onnxruntime-node'],sourcemap:false});
+await vite({root:'src/renderer',base:'./',build:{outDir:'../../dist/renderer',emptyOutDir:true,rollupOptions:{input:{index:'src/renderer/index.html',export:'src/renderer/export.html',capture:'src/renderer/capture.html'}}},worker:{format:'es'}});
+await fs.copyFile('assets/icon.png','dist/main/icon.png');
