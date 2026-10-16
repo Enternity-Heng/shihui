@@ -1,5 +1,7 @@
 # 式绘 · ShiHui
 
+[![Windows checks](https://github.com/Enternity-Heng/shihui/actions/workflows/ci.yml/badge.svg)](https://github.com/Enternity-Heng/shihui/actions/workflows/ci.yml)
+
 **Windows 上的离线公式、算法与科学绘图工作台。**
 
 将简单 LaTeX 转为可编辑的文字符号，将复杂公式排版为图片；从截图识别公式，在同一个工作台编写伪代码、绘制流程图和专业示意图。面向课堂笔记、课程作业、教学讲义与日常科研表达。

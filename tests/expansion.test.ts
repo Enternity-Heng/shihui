@@ -10,7 +10,6 @@ import {buildStructure,checkFragment,freshBuilder} from '../src/core/structures'
 import {convert} from '../src/core/converter';
 import {FavoriteStore,checkLibrary} from '../src/main/library';
 import {DraftStore,validateWorkspace} from '../src/main/drafts';
-import {setTimeout as pause} from 'node:timers/promises';
 import type {WorkspaceSnapshot,FavoriteLibrary} from '../src/shared/types';
 async function temporary(fn:(dir:string)=>Promise<void>){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'math-expansion-'));try{await fn(dir);}finally{await fs.rm(dir,{recursive:true,force:true});}}
 const snapshot=(text='KEEP'):WorkspaceSnapshot=>({version:1,editor:{text,start:0,end:text.length},builder:freshBuilder(),review:null,panel:null});
@@ -33,6 +32,17 @@ test('草稿主文件缺失仍从备份恢复，清除后旧请求不能复活',
 test('草稿写入失败保留旧磁盘且可重试',()=>temporary(async dir=>{const d=new DraftStore(dir);await d.init();d.accept(snapshot('FIRST'),0);await d.flush();await fs.mkdir(path.join(dir,'state.json.tmp'));d.accept(snapshot('SECOND'),0);await assert.rejects(d.flush());assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'FIRST');await fs.rmdir(path.join(dir,'state.json.tmp'));await d.flush();assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'SECOND');}));
 test('草稿原图先写后提交，当前与备份引用均保留，清除后全部移除',()=>temporary(async dir=>{const d=new DraftStore(dir);await d.init();const s=snapshot();const first=`data:image/png;base64,${(await fs.readFile('tests/fixtures/ocr/hyperbola.png')).toString('base64')}`,second=`data:image/png;base64,${(await fs.readFile('tests/fixtures/ocr/quadratic.png')).toString('base64')}`;s.review={id:randomUUID(),original:'x',source:'x',image:first,origin:'file',baseVersion:0};d.accept(s,0);await d.flush();s.review.image=second;d.accept(s,0);await d.flush();assert.equal((await fs.readdir(dir)).filter(n=>n.endsWith('.img')).length,2);await fs.writeFile(path.join(dir,'state.json'),'{broken');const r=new DraftStore(dir);assert.equal((await r.init()).snapshot?.review?.image,first);await r.clear();assert.equal((await fs.readdir(dir)).filter(n=>n.endsWith('.img')).length,0);}));
 test('原图落盘后清单提交失败，不改变旧快照且可重试',t=>temporary(async dir=>{const d=new DraftStore(dir);await d.init();d.accept(snapshot('OLD'),0);await d.flush();const s=snapshot('NEW');s.review={id:randomUUID(),original:'x',source:'x',origin:'file',baseVersion:0,image:`data:image/png;base64,${(await fs.readFile('tests/fixtures/ocr/hyperbola.png')).toString('base64')}`};const original=fs.rename;t.mock.method(fs,'rename',async(from:Parameters<typeof fs.rename>[0],to:Parameters<typeof fs.rename>[1])=>{if(String(to)===path.join(dir,'state.json'))throw new Error('模拟提交时磁盘写入失败');return original(from,to);});d.accept(s,0);await assert.rejects(d.flush());assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'OLD');t.mock.restoreAll();await d.flush();assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'NEW');}));
-test('持续输入不使草稿一直停留在未落盘状态',()=>temporary(async dir=>{const d=new DraftStore(dir);await d.init();for(let i=0;i<24;i++){d.accept(snapshot(String(i)),0);await pause(100);}const disk=JSON.parse(await fs.readFile(path.join(dir,'state.json'),'utf8'));assert.ok(Number(disk.snapshot.editor.text)>=15);await d.flush();assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'23');}));
+test('持续输入不使草稿一直停留在未落盘状态',t=>temporary(async dir=>{
+  const d=new DraftStore(dir);await d.init();
+  t.mock.timers.enable({apis:['setTimeout']});
+  const automaticWrites:Promise<void>[]=[],flush=d.flush.bind(d);
+  t.mock.method(d,'flush',()=>{const writing=flush();automaticWrites.push(writing);return writing;});
+  for(let i=0;i<24;i++){d.accept(snapshot(String(i)),0);t.mock.timers.tick(100);}
+  assert.ok(automaticWrites.length>0,'持续输入时应在停止输入前触发自动写入');
+  await Promise.all(automaticWrites);
+  const disk=JSON.parse(await fs.readFile(path.join(dir,'state.json'),'utf8'));
+  assert.ok(Number(disk.snapshot.editor.text)>=15);
+  await d.flush();assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'23');
+}));
 test('收藏分类与条数上限校验',()=>{const l=library();assert.throws(()=>checkLibrary({...l,categories:Array.from({length:51},(_,i)=>({id:randomUUID(),name:String(i)}))}));assert.throws(()=>checkLibrary({...l,favorites:Array.from({length:201},(_,i)=>favorite(String(i)))}));assert.throws(()=>checkLibrary({...l,categories:[{id:randomUUID(),name:'未分类'}]}));});
 test('损坏草稿保持只读，显式清空后可以重新保存',()=>temporary(async dir=>{await fs.writeFile(path.join(dir,'state.json'),'{broken');const d=new DraftStore(dir);assert.ok((await d.init()).warning);d.accept(snapshot('KEEP'),d.epoch);await assert.rejects(d.flush());await d.clear(true);d.accept(snapshot('NEW'),d.epoch);await d.flush();assert.equal((await new DraftStore(dir).init()).snapshot?.editor.text,'NEW');}));
